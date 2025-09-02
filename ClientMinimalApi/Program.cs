@@ -18,6 +18,15 @@ builder.Services.AddSingleton<IMqttClient>(sp =>
     return factory.CreateMqttClient();
 });
 
+
+
+
+builder.WebHost.ConfigureKestrel(serverOptions =>
+{
+    serverOptions.Listen(System.Net.IPAddress.Any, 8000); 
+});
+
+
 builder.Services.AddSingleton<MqttClientOptions>(opt =>
 {
     return new MqttClientOptionsBuilder()
@@ -48,7 +57,7 @@ var mqttClient = app.Services.GetRequiredService<IMqttClient>();
 var mqttOptions = app.Services.GetRequiredService<MqttClientOptions>();
 var serviceProvider = app.Services;
 
-//mqttClient.ApplicationMessageReceivedAsync += async e =>
+mqttClient.ApplicationMessageReceivedAsync += HandleReceivedApplicationMessage;
 //{
 //    var test = Convert.ToString(e.ApplicationMessage.Payload);
 //    if (e.ApplicationMessage.Topic.Equals("Alarm"))
@@ -111,7 +120,7 @@ async Task HandleReceivedApplicationMessage(MqttApplicationMessageReceivedEventA
             var service = scope.ServiceProvider.GetRequiredService<IDeviceService>();
 
 
-            //*await service.RegisterAlarm(new AlarmRequest(data[0], data[1]));
+            await service.RegisterAlarm(new AlarmRequest(data[0], data[1]), CancellationToken.None);
         }
         catch (Exception ex)
         {
@@ -170,7 +179,8 @@ app.MapGet("/getCards", async ([FromServices] IDeviceService service, Cancellati
     }
 });
 
-app.Run("http://0.0.0.0:8000");
+//app.Run("http://127.0.0.1:8000");
+app.Run();
 
 internal record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
 {

@@ -45,6 +45,7 @@ namespace ClientMinimalApi.Services
 
         public async Task RegisterAlarm(AlarmRequest request, CancellationToken cancellationToken)
         {
+            //TODO: Fix UTC TIME
             try
             {
                 var deviceId = await dbContext.Set<Devices>()
@@ -73,10 +74,19 @@ namespace ClientMinimalApi.Services
 
         public async Task<IEnumerable<Card>> GetCards(CancellationToken cancellationToken)
         {
-            var cards = await dbContext.Set<Card>()
-                .ToListAsync();
+            try
+            {
+                var cards = await dbContext.Set<Card>()
+                    .ToListAsync();
 
-            return cards;
+                return cards;
+            }
+            catch (Exception ex)
+            {
+
+                throw;
+            }
+
         }
     }
 }

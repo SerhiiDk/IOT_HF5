@@ -3,6 +3,6 @@
     public class Card
     {
         public int Id { get; set; }
-        public int Identifier { get; set; }
+        public string Identifier { get; set; }
     }
 }
