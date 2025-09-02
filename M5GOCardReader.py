@@ -35,7 +35,7 @@ client_id = ubinascii.hexlify(mac).upper()
 
 
 # Inititialize label
-label = M5TextBox(10, 10, "Please scan your card", lcd.FONT_DejaVu18, 0xFFFFFF, rotate=0)
+label = M5TextBox(10, 10, "Booting", lcd.FONT_DejaVu18, 0xFFFFFF, rotate=0)
 
 #initialize rfid
 rfid = unit.get(unit.RFID, unit.PORTA)
@@ -44,6 +44,7 @@ rfid = unit.get(unit.RFID, unit.PORTA)
 # Get Uids from database
 def fetch_authorized_uids():
     try:
+        label.setText("Waiting for api")
         url = "http://" + API_IP + "/getCards"
         response = urequests.get(url)
         if response.status_code == 200:
@@ -86,6 +87,7 @@ def set_led_color(r, g, b):
 
 # Card scan
 while True:
+    label.setText("Please scan your card")
     if rfid.isCardOn():
         uid_raw = rfid.readUid()
         uid = clean_uid(uid_raw)
@@ -105,8 +107,3 @@ while True:
         set_led_color(0, 0, 0)
 
     wait_ms(200)
-
-
-
-
-
