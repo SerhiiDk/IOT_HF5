@@ -23,6 +23,7 @@ namespace ClientMinimalApi.Data
         {
             modelBuilder.Entity<Devices>().ToTable("Devices");
             modelBuilder.Entity<Alarm>().ToTable("AlarmData");
+            modelBuilder.Entity<Card>().ToTable("Cards");
         }
     }
 }

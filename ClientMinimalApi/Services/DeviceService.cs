@@ -10,8 +10,9 @@ namespace ClientMinimalApi.Services
 
     public interface IDeviceService
     {
-        Task<bool> CheckPasswordByDeviceId(PasswordRequest request);
-        Task RegisterAlarm(AlarmRequest request);
+        Task<bool> CheckPasswordByDeviceId(PasswordRequest request, CancellationToken cancellationToken);
+        Task RegisterAlarm(AlarmRequest request, CancellationToken cancellationToken);
+        Task<IEnumerable<Card>> GetCards(CancellationToken cancellationToken);
     }
 
     public class DeviceService : IDeviceService
@@ -24,14 +25,14 @@ namespace ClientMinimalApi.Services
 
         }
 
-        public async Task<bool> CheckPasswordByDeviceId(PasswordRequest request)
+        public async Task<bool> CheckPasswordByDeviceId(PasswordRequest request, CancellationToken cancellationToken)
         {
             try
             {
                 var devicePassword = await dbContext.Set<Devices>()
                         .Where(d => d.DeviceId == request.DeviceId)
                         .Select(d => d.Password)
-                        .FirstOrDefaultAsync();
+                        .FirstOrDefaultAsync(cancellationToken);
 
                 return devicePassword == request.Password;
 
@@ -42,14 +43,14 @@ namespace ClientMinimalApi.Services
             }
         }
 
-        public async Task RegisterAlarm(AlarmRequest request)
+        public async Task RegisterAlarm(AlarmRequest request, CancellationToken cancellationToken)
         {
             try
             {
                 var deviceId = await dbContext.Set<Devices>()
                     .Where(d => d.DeviceId == request.DeviceId)
                     .Select(x => x.Id)
-                    .FirstOrDefaultAsync();
+                    .FirstOrDefaultAsync(cancellationToken);
 
                 if (deviceId is 0)
                 {
@@ -68,6 +69,14 @@ namespace ClientMinimalApi.Services
             {
                 throw;
             }
+        }
+
+        public async Task<IEnumerable<Card>> GetCards(CancellationToken cancellationToken)
+        {
+            var cards = await dbContext.Set<Card>()
+                .ToListAsync();
+
+            return cards;
         }
     }
 }
