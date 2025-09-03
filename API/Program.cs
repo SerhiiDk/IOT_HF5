@@ -3,28 +3,27 @@ using ClientMinimalApi.Dto;
 using ClientMinimalApi.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 using MQTTnet;
 using System.Text;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddScoped<IDeviceService, DeviceService>();
+// create mqtt client
 builder.Services.AddSingleton<IMqttClient>(sp =>
 {
     var factory = new MqttClientFactory();
     return factory.CreateMqttClient();
 });
 
-
+// allow other devices to connect to API
 builder.WebHost.ConfigureKestrel(serverOptions =>
 {
     serverOptions.Listen(System.Net.IPAddress.Any, 8000); 
 });
 
-
+// create mqtt options (broker name, connection ip, port)
 builder.Services.AddSingleton<MqttClientOptions>(opt =>
 {
     return new MqttClientOptionsBuilder()
@@ -37,6 +36,7 @@ builder.Services.AddSingleton<MqttClientOptions>(opt =>
 // TODO: User .net manager(for key)
 string connection = "server=192.168.1.124;database=IOT;user=Medarbejder;password=chrser123!;";
 
+// add connection to database  
 builder.Services.AddDbContext<DataContext>(options =>
 {
     options.UseMySql(connection, new MySqlServerVersion(new Version(10, 6)))
@@ -46,25 +46,27 @@ builder.Services.AddDbContext<DataContext>(options =>
 });
 
     
+// swagger
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
+// mqtt
 var mqttClient = app.Services.GetRequiredService<IMqttClient>();
 var mqttOptions = app.Services.GetRequiredService<MqttClientOptions>();
+
 var serviceProvider = app.Services;
 
+// mqtt handler
 mqttClient.ApplicationMessageReceivedAsync += HandleReceivedApplicationMessage;
 mqttClient.DisconnectedAsync += e =>
 {
-    Console.WriteLine("Disconnected");
-    //Console.WriteLine($"Received message: {e.ApplicationMessage.Topic} - {System.Text.Encoding.UTF8.GetString(e.ApplicationMessage.Payload)}");
     return Task.CompletedTask;
 };
 
+// setup mqttp client
 await mqttClient.ConnectAsync(mqttOptions, CancellationToken.None);
-await mqttClient.SubscribeAsync("Test");
 await mqttClient.SubscribeAsync("Alarm");
 
 // Configure the HTTP request pipeline.
@@ -73,8 +75,6 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
-
-//app.UseHttpsRedirection();
 
 async Task HandleReceivedApplicationMessage(MqttApplicationMessageReceivedEventArgs e)
 {
@@ -92,20 +92,20 @@ async Task HandleReceivedApplicationMessage(MqttApplicationMessageReceivedEventA
         }
         catch (Exception ex)
         {
-
-            throw;
+            throw new Exception(ex.Message);
         }
     }
-    Console.WriteLine($"Received message: {e.ApplicationMessage.Topic} - {System.Text.Encoding.UTF8.GetString(e.ApplicationMessage.Payload)}");
+    
     await Task.CompletedTask;
 }
 
+// returns 200//401
 app.MapPost("/verifyPassword", async ([FromServices] IDeviceService service,  HttpRequest request, CancellationToken cancellationToken) =>
 {
     try
     {
         using var reader = new StreamReader(request.Body);
-        var rawJson = await reader.ReadToEndAsync();
+        var rawJson = await reader.ReadToEndAsync(cancellationToken);
 
         var values = JsonSerializer.Deserialize<string[]>(rawJson);
 
@@ -119,52 +119,39 @@ app.MapPost("/verifyPassword", async ([FromServices] IDeviceService service,  Ht
         return isValid
             ? Results.Ok()
             : Results.Unauthorized();
-
     }
     catch (Exception ex)
     {
-
-        Console.WriteLine(ex.Message);
         return Results.Problem();
     }
 });
 
+// return array of cards
 app.MapGet("/getCards", async ([FromServices] IDeviceService service, CancellationToken cancellation = default) =>
 {
     try
     {
         var cards = await service.GetCards(cancellation);
         return Results.Ok(cards);
-
     }
     catch (Exception ex)
     {
-
-        Console.WriteLine(ex.Message);
         return Results.Problem();
     }
 });
 
-
+// return array of settings
 app.MapGet("/getSettings", async ([FromServices] IDeviceService service, CancellationToken cancellation = default) =>
 {
     try
     {
         var settings = await service.GetSettings(cancellation);
         return Results.Ok(settings);
-
     }
     catch (Exception ex)
     {
-
-        Console.WriteLine(ex.Message);
         return Results.Problem();
     }
 });
 
 app.Run();
-
-internal record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}

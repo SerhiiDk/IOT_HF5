@@ -1,13 +1,10 @@
 ﻿using ClientMinimalApi.Data;
 using ClientMinimalApi.Data.Entities;
 using ClientMinimalApi.Dto;
-using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
-using System.Diagnostics;
 
 namespace ClientMinimalApi.Services
 {
-
     public interface IDeviceService
     {
         Task<bool> CheckPasswordByDeviceId(PasswordRequest request, CancellationToken cancellationToken);
@@ -23,7 +20,6 @@ namespace ClientMinimalApi.Services
         public DeviceService(DataContext dbContext)
         {
             this.dbContext = dbContext;
-
         }
 
         public async Task<bool> CheckPasswordByDeviceId(PasswordRequest request, CancellationToken cancellationToken)
@@ -36,7 +32,6 @@ namespace ClientMinimalApi.Services
                         .FirstOrDefaultAsync(cancellationToken);
 
                 return devicePassword == request.Password;
-
             }
             catch (Exception ex)
             {
@@ -68,9 +63,9 @@ namespace ClientMinimalApi.Services
                 dbContext.Alarm.Add(alarmEntiry);
                 await dbContext.SaveChangesAsync(cancellationToken);
             }
-            catch (Exception Ex) 
+            catch (Exception ex) 
             {
-                throw;
+                throw new Exception(ex.Message);
             }
         }
 
@@ -85,7 +80,7 @@ namespace ClientMinimalApi.Services
             }
             catch (Exception ex)
             {
-                throw;
+                throw new Exception(ex.Message);
             }
         }
 
@@ -100,7 +95,7 @@ namespace ClientMinimalApi.Services
             }
             catch (Exception ex)
             {
-                throw;
+                throw new Exception(ex.Message);
             }
         }
     }
