@@ -33,8 +33,7 @@ builder.Services.AddSingleton<MqttClientOptions>(opt =>
         .Build();
 });
 
-// TODO: User .net manager(for key)
-string connection = "server=192.168.1.124;database=IOT;user=Medarbejder;password=chrser123!;";
+var connection = builder.Configuration.GetConnectionString("MariaDbConnection");
 
 // add connection to database  
 builder.Services.AddDbContext<DataContext>(options =>
