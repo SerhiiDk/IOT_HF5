@@ -58,8 +58,7 @@ def fetch_authorized_uids():
         wait(5)
         print("Failed to fetch authorized UIDs:", e)
     return []
-    
-# authorized_uids = ["4BE8EFF34","12345678","DEADBEEF"]
+
 authorized_uids = fetch_authorized_uids()
 
 # Card read
@@ -105,5 +104,6 @@ while True:
         label.setText("Please scan your card")
     else:
         set_led_color(0, 0, 0)
+
 
     wait_ms(200)
