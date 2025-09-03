@@ -59,7 +59,7 @@ def fetch_authorized_uids():
         print("Failed to fetch authorized UIDs:", e)
     return []
     
-# authorized_uids = ["4BE8EFF34","12345678","DEADBEEF"]
+
 authorized_uids = fetch_authorized_uids()
 
 # Card read
