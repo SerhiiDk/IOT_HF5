@@ -208,9 +208,8 @@ void setup() {
   // Serial.print("Attempting to connect to SSID: ");
   // Serial.println(ssid);
   while (WiFi.begin(ssid, pass) != WL_CONNECTED) {
-    // failed, retry
-    // Serial.print(".");
-    delay(5000);
+    // for debuging
+    // Serial.println("Missing connection");
   }
   GetSettings();
   // Serial.println("You're connected to the network");
