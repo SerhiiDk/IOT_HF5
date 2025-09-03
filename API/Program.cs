@@ -19,8 +19,6 @@ builder.Services.AddSingleton<IMqttClient>(sp =>
 });
 
 
-
-
 builder.WebHost.ConfigureKestrel(serverOptions =>
 {
     serverOptions.Listen(System.Net.IPAddress.Any, 8000); 
@@ -58,31 +56,6 @@ var mqttOptions = app.Services.GetRequiredService<MqttClientOptions>();
 var serviceProvider = app.Services;
 
 mqttClient.ApplicationMessageReceivedAsync += HandleReceivedApplicationMessage;
-//{
-//    var test = Convert.ToString(e.ApplicationMessage.Payload);
-//    if (e.ApplicationMessage.Topic.Equals("Alarm"))
-//    {
-//        try
-//        {
-//            var data = System.Text.Encoding.UTF8.GetString(e.ApplicationMessage.Payload).Split(",");
-
-//            //using var scope = serviceProvider.CreateScope();
-//            //var service = scope.ServiceProvider.GetRequiredService<IDeviceService>();
-
-
-//            //*await service.RegisterAlarm(new AlarmRequest(data[0], data[1]));
-//        }
-//        catch (Exception ex)
-//        {
-
-//            throw;
-//        }
-//    }
-//    Console.WriteLine($"Received message: {e.ApplicationMessage.Topic} - {System.Text.Encoding.UTF8.GetString(e.ApplicationMessage.Payload)}");
-//    //Connect("192.168.1.124", "Test", "chrser", "serchr123!");
-//    await Task.CompletedTask;
-//};
-
 mqttClient.DisconnectedAsync += e =>
 {
     Console.WriteLine("Disconnected");
@@ -90,12 +63,9 @@ mqttClient.DisconnectedAsync += e =>
     return Task.CompletedTask;
 };
 
-
 await mqttClient.ConnectAsync(mqttOptions, CancellationToken.None);
 await mqttClient.SubscribeAsync("Test");
 await mqttClient.SubscribeAsync("Alarm");
-
-
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -105,7 +75,6 @@ if (app.Environment.IsDevelopment())
 }
 
 //app.UseHttpsRedirection();
-
 
 async Task HandleReceivedApplicationMessage(MqttApplicationMessageReceivedEventArgs e)
 {
@@ -119,8 +88,7 @@ async Task HandleReceivedApplicationMessage(MqttApplicationMessageReceivedEventA
             using var scope = serviceProvider.CreateScope();
             var service = scope.ServiceProvider.GetRequiredService<IDeviceService>();
 
-
-            await service.RegisterAlarm(new AlarmRequest(data[0], data[1]), CancellationToken.None);
+            await service.RegisterAlarm(new AlarmRequest(data[0], data[2]), CancellationToken.None);
         }
         catch (Exception ex)
         {
@@ -129,10 +97,8 @@ async Task HandleReceivedApplicationMessage(MqttApplicationMessageReceivedEventA
         }
     }
     Console.WriteLine($"Received message: {e.ApplicationMessage.Topic} - {System.Text.Encoding.UTF8.GetString(e.ApplicationMessage.Payload)}");
-    //Connect("192.168.1.124", "Test", "chrser", "serchr123!");
     await Task.CompletedTask;
 }
-
 
 app.MapPost("/verifyPassword", async ([FromServices] IDeviceService service,  HttpRequest request, CancellationToken cancellationToken) =>
 {
@@ -152,7 +118,7 @@ app.MapPost("/verifyPassword", async ([FromServices] IDeviceService service,  Ht
 
         return isValid
             ? Results.Ok()
-            : Results.BadRequest();
+            : Results.Unauthorized();
 
     }
     catch (Exception ex)
@@ -179,7 +145,23 @@ app.MapGet("/getCards", async ([FromServices] IDeviceService service, Cancellati
     }
 });
 
-//app.Run("http://127.0.0.1:8000");
+
+app.MapGet("/getSettings", async ([FromServices] IDeviceService service, CancellationToken cancellation = default) =>
+{
+    try
+    {
+        var settings = await service.GetSettings(cancellation);
+        return Results.Ok(settings);
+
+    }
+    catch (Exception ex)
+    {
+
+        Console.WriteLine(ex.Message);
+        return Results.Problem();
+    }
+});
+
 app.Run();
 
 internal record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)

@@ -13,6 +13,7 @@ namespace ClientMinimalApi.Services
         Task<bool> CheckPasswordByDeviceId(PasswordRequest request, CancellationToken cancellationToken);
         Task RegisterAlarm(AlarmRequest request, CancellationToken cancellationToken);
         Task<IEnumerable<Card>> GetCards(CancellationToken cancellationToken);
+        Task<IEnumerable<Setting>> GetSettings(CancellationToken cancellationToken);
     }
 
     public class DeviceService : IDeviceService
@@ -29,8 +30,8 @@ namespace ClientMinimalApi.Services
         {
             try
             {
-                var devicePassword = await dbContext.Set<Devices>()
-                        .Where(d => d.DeviceId == request.DeviceId)
+                var devicePassword = await dbContext.Devices
+                        .Where(d => d.Password == request.Password)
                         .Select(d => d.Password)
                         .FirstOrDefaultAsync(cancellationToken);
 
@@ -45,10 +46,9 @@ namespace ClientMinimalApi.Services
 
         public async Task RegisterAlarm(AlarmRequest request, CancellationToken cancellationToken)
         {
-            //TODO: Fix UTC TIME
             try
             {
-                var deviceId = await dbContext.Set<Devices>()
+                var deviceId = await dbContext.Devices
                     .Where(d => d.DeviceId == request.DeviceId)
                     .Select(x => x.Id)
                     .FirstOrDefaultAsync(cancellationToken);
@@ -58,13 +58,15 @@ namespace ClientMinimalApi.Services
                     throw new InvalidOperationException($"Device with id: {request.DeviceId} was not found");
                 }
 
-                var test = new DateTimeOffset().Date;
                 var alarmEntiry = new Alarm
                 {
                     Data = request.Message,
                     DeviceId = deviceId,
-                    Date = new DateTimeOffset().Date
+                    Date = DateTimeOffset.Now.Date
                 };
+                
+                dbContext.Alarm.Add(alarmEntiry);
+                await dbContext.SaveChangesAsync(cancellationToken);
             }
             catch (Exception Ex) 
             {
@@ -76,17 +78,30 @@ namespace ClientMinimalApi.Services
         {
             try
             {
-                var cards = await dbContext.Set<Card>()
-                    .ToListAsync();
+                var cards = await dbContext.Cards
+                    .ToListAsync(cancellationToken);
 
                 return cards;
             }
             catch (Exception ex)
             {
-
                 throw;
             }
+        }
 
+        public async Task<IEnumerable<Setting>> GetSettings(CancellationToken cancellationToken)
+        {
+            try
+            {
+                var settings = await dbContext.Settings
+                    .ToListAsync(cancellationToken);
+
+                return settings;
+            }
+            catch (Exception ex)
+            {
+                throw;
+            }
         }
     }
 }
