@@ -1,8 +1,11 @@
+#include <Arduino.h>
+
+#include "secrets.h"
+#include "MessageType.h"
+
 #include <ArduinoMqttClient.h>
 #include <WiFi.h>
-#include "arduino_secrets.h"
 #include <ArduinoUniqueID.h>
-#include "MessageType.h"
 #include <rgb_lcd.h>
 #include <Arduino_JSON.h>
 
@@ -14,19 +17,25 @@ char broker[] = SECRET_BROKER;
 int brokerPort = SECRET_BROKER_PORT;
 
 WiFiClient client;
-MqttClient mqttClient(client);
+WiFiClient wifiClient;
+MqttClient mqttClient(wifiClient);
 
 char alarmTopic[]  = "Alarm";
 int alarmLength;
-
+int updateSettingInterval;
 rgb_lcd lcd;
 
 int button_press = 0;
 const int buttonPin = 5;
 const int led = 4;
+const int buzzerPin = 8;
 
 unsigned long previousMillis = 0;
-long loopInterval; 
+short ledInterval; 
+short buzzerSound;
+
+
+unsigned long start = 0;
 
 void GetIndentifier(){
   UniqueIDdump(Serial);
@@ -45,6 +54,7 @@ void GetIndentifier(){
 
 void GetSettings()
 {
+  mqttClient.poll();
   char request[200]; // Buffer for request route
   char* route = "/getSettings";
   // Make Post Request with route value 
@@ -112,18 +122,24 @@ void GetSettings()
         JSONVar obj = result[i];
 
         // Extract values
-
         String name = (const char*)obj["name"];
         String value = (const char*)obj["value"];
-
         if(name == "AlarmLength")
         {
           alarmLength = value.toInt();
         }
-        else if (name = "loopInterval")
+        else if (name == "LedInterval")
         {
-           loopInterval = (value + "00").toInt();
+           ledInterval = (value + "00").toInt();
         }
+        else if (name == "BuzzerSound")
+        {
+           buzzerSound = value.toInt();
+        }
+        else if(name == "UpdateSettingInterval")
+        {
+          updateSettingInterval = (value + "000").toInt();
+        } 
       }
     }
     else
@@ -133,12 +149,8 @@ void GetSettings()
   }
   else{
     // Serial.println("Error");
-  }
-  
-          
+  } 
 }
-
-
 
 void DisplayMessage(char message[], MessageType type)
 {
@@ -160,32 +172,62 @@ void DisplayMessage(char message[], MessageType type)
   }
 }
 
-
-void RunAlarm(){
+void RunAlarm() {
   DisplayMessage("Alarm", MessageType::Alarm);
   int count = 0;
-  while(count < alarmLength)
-  {
+  previousMillis = millis(); // initialize previousMillis before loop starts
+
+  while (count < alarmLength) {
+    tone(buzzerPin, buzzerSound);  // start tone
+    
+    
     unsigned long currentMillis = millis();
+    button_press = digitalRead(buttonPin);  // update button state here
 
-    button_press = digitalRead(buttonPin);
-
-    if (currentMillis - previousMillis >= loopInterval) 
-    {
+    if (currentMillis - previousMillis >= ledInterval) {
       previousMillis = currentMillis;
-      digitalWrite(led, !digitalRead(led)); 
+      digitalWrite(led, !digitalRead(led)); // toggle LED
       count++;
     }
-    if(button_press == 1)
-    {
+
+    if (button_press == HIGH) {
       digitalWrite(led, LOW);
+      noTone(buzzerPin);  // stop tone when button pressed
       DisplayMessage("No Alarm", MessageType::NoAlarm);
-      return;
-    } 
+      break;
+    }
   }
-  // Serial.println("Alarm is stopped");
+
+  DisplayMessage("No Alarm", MessageType::NoAlarm);
+  noTone(buzzerPin);  // stop tone when alarm ends
+  digitalWrite(led, LOW); // turn off LED at the end
 }
 
+void onMqttMessage(int messageSize) {
+  // we received a message, print out the topic and contents
+  // for debuging
+  // Serial.println("Received a message with topic '");
+  // Serial.print(mqttClient.messageTopic());
+  // Serial.print("', length ");
+  // Serial.print(messageSize);
+  // Serial.println(" bytes:");
+
+  String message = "";
+
+  while (mqttClient.available()) {
+    message += (char)mqttClient.read();
+  }
+
+  // Optionally print it
+  // Serial.println(message);
+  // use the Stream interface to print the contents
+  while (mqttClient.available()) {
+    // Serial.print((char)mqttClient.read());
+  }
+  
+  RunAlarm();
+ // mqttClient.poll();
+}
 
 void setup() {
   //Initialize serial and wait for port to open:
@@ -193,7 +235,7 @@ void setup() {
   //Led port settings
   pinMode(led, OUTPUT);
   pinMode(buttonPin, INPUT);
-
+  pinMode(buzzerPin, OUTPUT);
   lcd.begin(16, 2);
   DisplayMessage("No alarm", MessageType::NoAlarm);
   
@@ -207,7 +249,8 @@ void setup() {
   // attempt to connect to Wifi network:
   // Serial.print("Attempting to connect to SSID: ");
   // Serial.println(ssid);
-  while (WiFi.begin(ssid, pass) != WL_CONNECTED) {
+  while (WiFi.begin(ssid, pass) != WL_CONNECTED)
+  {
     // for debuging
     // Serial.println("Missing connection");
   }
@@ -241,33 +284,15 @@ void setup() {
   // Serial.println(alarmTopic);
 }
 
-void loop() {
-  // call poll() regularly to allow the library to receive MQTT messages and
-  // send MQTT keep alive which avoids being disconnected by the broker
+void loop() 
+{
   mqttClient.poll();
-}
 
-void onMqttMessage(int messageSize) {
-  // we received a message, print out the topic and contents
-  // for debuging
-  // Serial.println("Received a message with topic '");
-  // Serial.print(mqttClient.messageTopic());
-  // Serial.print("', length ");
-  // Serial.print(messageSize);
-  // Serial.println(" bytes:");
+  unsigned long current = millis();
 
-  String message = "";
-
-  while (mqttClient.available()) {
-    message += (char)mqttClient.read();
+  if (current - start > updateSettingInterval)
+  {
+    GetSettings();
+    start = current;
   }
-
-  // Optionally print it
-  // Serial.println(message);
-  // use the Stream interface to print the contents
-  while (mqttClient.available()) {
-    // Serial.print((char)mqttClient.read());
-  }
-  
-  RunAlarm();
 }
