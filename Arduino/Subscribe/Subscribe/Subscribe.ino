@@ -37,20 +37,10 @@ short buzzerSound;
 
 unsigned long start = 0;
 
+// get device identifier
 void GetIndentifier(){
   UniqueIDdump(Serial);
-  // for debuging
-	// Serial.print("UniqueID: ");
-	for (size_t i = 0; i < UniqueIDsize; i++)
-	{
-		if (UniqueID[i] < 0x10)
-    {
-			// Serial.print("0");
-    }
-		// Serial.print(UniqueID[i], HEX);
-	}
 }
-
 
 void GetSettings()
 {
@@ -93,26 +83,20 @@ void GetSettings()
             }
             continue;
           }
-
           // filter body
           if (line.length() <= 4 && line.indexOf("[") == -1 && line.indexOf("{") == -1) 
           {
             continue;
           }
-
           responseBody += line;
         }
       }
       client.stop();
-      // for debuging
-      // Serial.println("Response body");
-      // Serial.println(responseBody);
       JSONVar result = JSON.parse(responseBody);
 
       // Check if parsing was successful
       if (JSON.typeof(result) != "array") 
       {
-        // Serial.println("Failed to parse JSON or not an array.");
         return;
       }
 
@@ -180,7 +164,6 @@ void RunAlarm() {
   while (count < alarmLength) {
     tone(buzzerPin, buzzerSound);  // start tone
     
-    
     unsigned long currentMillis = millis();
     button_press = digitalRead(buttonPin);  // update button state here
 
@@ -203,30 +186,10 @@ void RunAlarm() {
   digitalWrite(led, LOW); // turn off LED at the end
 }
 
-void onMqttMessage(int messageSize) {
-  // we received a message, print out the topic and contents
-  // for debuging
-  // Serial.println("Received a message with topic '");
-  // Serial.print(mqttClient.messageTopic());
-  // Serial.print("', length ");
-  // Serial.print(messageSize);
-  // Serial.println(" bytes:");
-
-  String message = "";
-
-  while (mqttClient.available()) {
-    message += (char)mqttClient.read();
-  }
-
-  // Optionally print it
-  // Serial.println(message);
-  // use the Stream interface to print the contents
-  while (mqttClient.available()) {
-    // Serial.print((char)mqttClient.read());
-  }
-  
+void onMqttMessage(int messageSize) 
+{
+  // we received a message from subscription
   RunAlarm();
- // mqttClient.poll();
 }
 
 void setup() {
@@ -239,49 +202,29 @@ void setup() {
   lcd.begin(16, 2);
   DisplayMessage("No alarm", MessageType::NoAlarm);
   
-  while (!Serial) {
-    // Serial.print("No Serial ");
-    ; // wait for serial port to connect. Needed for native USB port only
+  while (!Serial)
+  {
+    //no serial port
   }
 
   GetIndentifier();
-
   // attempt to connect to Wifi network:
-  // Serial.print("Attempting to connect to SSID: ");
-  // Serial.println(ssid);
   while (WiFi.begin(ssid, pass) != WL_CONNECTED)
   {
-    // for debuging
-    // Serial.println("Missing connection");
+      //can not connect to WIFI
   }
   GetSettings();
-  // Serial.println("You're connected to the network");
-  // Serial.println();
 
-  // Serial.print("Attempting to connect to the MQTT broker: ");
-  // Serial.println(broker);
-
-  if (!mqttClient.connect(broker, brokerPort)) {
-    // Serial.print("MQTT connection failed! Error code = ");
-    // Serial.println(mqttClient.connectError());
+  if (!mqttClient.connect(broker, brokerPort))
+  {
     while (1);
   }
-
-  // Serial.println("You're connected to the MQTT broker!");
-
-  // set the message receive callback
-  mqttClient.onMessage(onMqttMessage);
-  // Serial.print("Subscribing to topic: ");
-  // Serial.println(alarmTopic);
-  
   // subscribe to a topic
   mqttClient.subscribe(alarmTopic);
-
+  // set the message receive callback
+  mqttClient.onMessage(onMqttMessage);
   // topics can be unsubscribed using:
   // mqttClient.unsubscribe(topic);
-
-  // Serial.print("Topic: ");
-  // Serial.println(alarmTopic);
 }
 
 void loop() 
