@@ -23,7 +23,6 @@ int apiPort = SECRET_API_PORT;
 char broker[] = SECRET_BROKER;
 int brokerPort = SECRET_BROKER_PORT;
 
-
 char cardScanTopic[] = "CardScan";
 char alarmTopic[] = "Alarm";
 
@@ -39,12 +38,15 @@ int passwordAttempt = 0;
 int passwordAttemptLimit;
 int shortWait;
 int longWait;
+int updateSettingInterval;
 char arduinoIdentifier[UniqueIDsize * 2 + 1];
 
 rgb_lcd lcd;
 
 WiFiClient wifiClient;
 MqttClient mqttClient(wifiClient);
+
+unsigned long start = 0;
 
 const byte ROWS = 4; //four rows
 const byte COLS = 4; //three columns
@@ -111,7 +113,20 @@ void DisplayMessage(char message[], MessageType type)
   }
 }
 
-void CheckStatusCode(char text[]){
+//
+void WaitFor(unsigned long ms) 
+{
+  unsigned long start = millis();
+
+  while (millis() - start < ms) 
+  {
+    //for debuging
+    //Serial.println("LIVE TIMER");
+    //Serial.println(ms);
+  }
+}
+
+void RunPasswordCheck(char text[]){
   int statusCodeStringStartPos = 9;
   int statusCodeStringEndPos = 12;
 
@@ -128,7 +143,7 @@ void CheckStatusCode(char text[]){
   if(strcmp(result, "200") == 0){
     DisplayMessage("Door is open", MessageType::Success);
     keyPadActive = false;
-    delay(shortWait);
+    WaitFor(shortWait);
     DisplayMessage("Scan card: ", MessageType::Info);
     keyPadPresses = 0;
     memset(password, 0, sizeof(password)); // reset password 
@@ -137,8 +152,8 @@ void CheckStatusCode(char text[]){
   else
   {
     passwordAttempt++;
-    Serial.println("Check passsword");
-    Serial.println(passwordAttemptLimit);
+    // Serial.println("Check passsword");
+    // Serial.println(passwordAttemptLimit);
 
     if(passwordAttempt >= passwordAttemptLimit)
     {
@@ -147,7 +162,7 @@ void CheckStatusCode(char text[]){
       DisplayMessage("Door is blocked ", MessageType::Error);
       passwordAttempt = 0;
       keyPadActive = false;
-      delay(longWait);
+      WaitFor(longWait);
       DisplayMessage("Scan card: ", MessageType::Info);
       return;
     }
@@ -160,6 +175,8 @@ void CheckStatusCode(char text[]){
 
 void GetSettings()
 {
+  // for debuging
+  Serial.println("RUN UPDATE");
   char request[200]; // Buffer for request route
   char* route = "/getSettings";
   // Make Post Request with route value 
@@ -243,6 +260,10 @@ void GetSettings()
         {
             longWait = (value + "000").toInt();
         }
+        else if(name == "UpdateSettingInterval")
+        {
+          updateSettingInterval = (value + "000").toInt();
+        }
       }
     }
     else
@@ -253,8 +274,6 @@ void GetSettings()
   else{
     // Serial.println("Error");
   }
-  
-          
 }
 
 void VerifyPassword()
@@ -321,7 +340,8 @@ void VerifyPassword()
         }
       }
       client.stop();
-      CheckStatusCode(response);
+      RunPasswordCheck
+    (response);
       // Serial.println("Connection closed");
     }
     else
@@ -430,7 +450,8 @@ void setup()
   // Connect to WiFi
   while (WiFi.begin(ssid, pass) != WL_CONNECTED) 
   {
-    delay(5000);
+    // for debuging
+    // Serial.println("Missing connection");
   }
 
   GetSettings();
@@ -463,6 +484,16 @@ void loop()
   //     startTime = millis();
   //     //loopCount = 0;
   // }
+    
+  unsigned long current = millis();
+
+  // run every x count (getting from DB) minutes to uptade setting
+  if (current - start > updateSettingInterval)
+  {
+    GetSettings();
+    start = current;
+  }
+
   if (kpd.getKeys())
   {
     if(keyPadActive == true)
