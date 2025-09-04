@@ -69,23 +69,14 @@ Keypad kpd = Keypad( makeKeymap(keys), rowPins, colPins, ROWS, COLS );
 
 void SendToTopic(char topicName[], String message)
 {
-  // For debuging
-  // Serial.println("Send to topic");
-  // Serial.println(message);
-
   mqttClient.poll();
-
-  // For debuging
-  // Serial.print("Sending message to topic: ");
-  // Serial.println(topicName);
-  // Serial.println(message);
-
   mqttClient.beginMessage(topicName);
   mqttClient.print(message);
   mqttClient.endMessage();
 } 
 
-void DisplayLCDMessage(char message[], int red, int green, int blue){
+void DisplayLCDMessage(char message[], int red, int green, int blue)
+{
   lcd.clear();
   lcd.setRGB(red, green, blue);
   lcd.print(message);
@@ -113,16 +104,14 @@ void DisplayMessage(char message[], MessageType type)
   }
 }
 
-//
+// "live" timer
 void WaitFor(unsigned long ms) 
 {
   unsigned long start = millis();
-
+  //do someting while waiting
   while (millis() - start < ms) 
   {
-    //for debuging
-    //Serial.println("LIVE TIMER");
-    //Serial.println(ms);
+
   }
 }
 
@@ -140,7 +129,9 @@ void RunPasswordCheck(char text[]){
   }
   result[j] = '\0';
 
-  if(strcmp(result, "200") == 0){
+  if(strcmp(result, "200") == 0)
+  {
+    passwordAttempt = 0;
     DisplayMessage("Door is open", MessageType::Success);
     keyPadActive = false;
     WaitFor(shortWait);
@@ -152,9 +143,7 @@ void RunPasswordCheck(char text[]){
   else
   {
     passwordAttempt++;
-    // Serial.println("Check passsword");
-    // Serial.println(passwordAttemptLimit);
-
+    
     if(passwordAttempt >= passwordAttemptLimit)
     {
       String message = strcat(arduinoIdentifier, ",Password Alarm");
@@ -175,8 +164,6 @@ void RunPasswordCheck(char text[]){
 
 void GetSettings()
 {
-  // for debuging
-  Serial.println("RUN UPDATE");
   char request[200]; // Buffer for request route
   char* route = "/getSettings";
   // Make Post Request with route value 
@@ -226,9 +213,6 @@ void GetSettings()
         }
       }
       client.stop();
-      // for debuging
-      // Serial.println("Response body");
-      // Serial.println(responseBody);
       JSONVar result = JSON.parse(responseBody);
 
       // Check if parsing was successful
@@ -244,7 +228,6 @@ void GetSettings()
         JSONVar obj = result[i];
 
         // Extract values
-
         String name = (const char*)obj["name"];
         String value = (const char*)obj["value"];
 
@@ -296,10 +279,10 @@ void VerifyPassword()
 
   String jsonBody = JSON.stringify(body);
   
-  if (JSON.typeof(body) == "undefined") {
+  if (JSON.typeof(body) == "undefined") 
+  {
     //Serial.println("Parsing input failed!");
     return;
-
   }
    // Check wifi connection 
   if(WiFi.status()== WL_CONNECTED)
@@ -309,13 +292,8 @@ void VerifyPassword()
     if (client.connect(api, apiPort)) 
     {
       String host = strcat("Host: " , api);
-      // for debuging
-      // Serial.println("JSON OBJECT:");
-      // Serial.println(body);
-      // Serial.println("Connected to server (TCP)");
-      // Serial.println(request);
-      client.println(request);
 
+      client.println(request);
       client.println(host);
       client.println("Content-Type: application/json");
       client.print("Content-Length: ");
@@ -323,14 +301,13 @@ void VerifyPassword()
       client.println("Connection: close");
       client.println(); // end HTTP request header
       client.print(jsonBody);
-      // Serial.println("Request is send");
 
       while (client.connected()) 
       {
         while (client.available()) 
         {
           char c = client.read();
-          // Serial.print(c);
+
           if (index < sizeof(response) - 1) 
           { 
               response[index] = c;
@@ -340,9 +317,7 @@ void VerifyPassword()
         }
       }
       client.stop();
-      RunPasswordCheck
-    (response);
-      // Serial.println("Connection closed");
+      RunPasswordCheck(response);
     }
     else
     {
@@ -355,19 +330,15 @@ void VerifyPassword()
 }
 
 void GetIndentifier() {
-  for (size_t i = 0; i < UniqueIDsize; i++) {
-    if (UniqueID[i] < 0x10)
-    {
-      // Serial.print("0");  
-    }
-    // Serial.print(UniqueID[i], HEX);
+  for (size_t i = 0; i < UniqueIDsize; i++) 
+  {
     sprintf(&arduinoIdentifier[i * 2], "%02X", UniqueID[i]);
   }
-
   arduinoIdentifier[UniqueIDsize * 2] = '\0';
 }
 
-void DisplayPasswordSymbol(){
+void DisplayPasswordSymbol()
+{
   lcd.setCursor(0, 2);
   int length = strlen(password); 
 
@@ -381,11 +352,13 @@ void DeleteLastPasswordSymbol()
 {
   int length = strlen(password); 
 
-  if(length == 0){
+  if(length == 0)
+  {
     lcd.setCursor(0, 2);
     lcd.print(" ");
   }
-  else{
+  else
+  {
     lcd.setCursor(keyPadPresses, 2);
     lcd.print(" ");
   }
@@ -399,13 +372,7 @@ void AddCharToPassword(char symbol)
 }
 
 void onMqttMessage(int messageSize) {
-  // for debuging, we received a message, print out the topic and contents
-  // Serial.println("Received a message with topic '");
-  // Serial.print(mqttClient.messageTopic());
-  // Serial.print("', length ");
-  // Serial.print(messageSize);
-  // Serial.println(" bytes:");
-
+  // for debuging, we received a message
   String message = "";
 
   while (mqttClient.available()) 
@@ -418,17 +385,8 @@ void onMqttMessage(int messageSize) {
 }
 
 void SubsribeOnTopic(){
-  mqttClient.onMessage(onMqttMessage);
-  
-  // for debuging
-  // Serial.print("Subscribing to topic: ");
-  // Serial.println(cardScanTopic);
-  // Serial.println();
-  
   mqttClient.subscribe(cardScanTopic);
-
-  // Serial.print("Topic: ");
-  // Serial.println(cardScanTopic);
+  mqttClient.onMessage(onMqttMessage);
   DisplayMessage("Scan card: ", MessageType::Info);
 }
 
@@ -444,30 +402,19 @@ void setup()
   lcd.begin(16, 2);
   DisplayMessage("Booting", MessageType::Info);
 
-  //loopCount = 0;
-  // startTime = millis();
-
   // Connect to WiFi
   while (WiFi.begin(ssid, pass) != WL_CONNECTED) 
   {
-    // for debuging
-    // Serial.println("Missing connection");
+    // can not connect to WIFI
   }
 
   GetSettings();
-  // for debuging
-  // Serial.println("You're connected to the network");
-  // Serial.print("Attempting to connect to the MQTT broker: ");
-  // Serial.println(broker);
 
   if (!mqttClient.connect(broker, brokerPort)) 
   {
-    // Serial.print("MQTT connection failed! Error code = ");
-    // Serial.println(mqttClient.connectError());
     while (1);  // Stop here if connection failed
   }
 
-  // Serial.println("You're connected to the MQTT broker!");
   SubsribeOnTopic();
 }
 
@@ -477,17 +424,10 @@ void loop()
   // For debuging ()
   //loopCount++;
   mqttClient.poll();
-
-  // For debuging ()
-  // if ( (millis()-startTime) > 5000 ) 
-  // {
-  //     startTime = millis();
-  //     //loopCount = 0;
-  // }
     
   unsigned long current = millis();
 
-  // run every x count (getting from DB) minutes to uptade setting
+  // run after giveb time  (getting from DB) minutes to uptade setting
   if (current - start > updateSettingInterval)
   {
     GetSettings();
